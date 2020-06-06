@@ -9,18 +9,29 @@
 #include <map>
 #include <queue>
 #include <utility>
+#include <numeric>
 using namespace std;
 
-//mapea un estado con su respectiva heuristica
-map< vector<vector<int>> , int > heuristicasTablero;
+typedef vector<vector<int>> Puzzle;
 
-//estructura que representa un nodo
-struct Tree{
-    vector<vector<int>> estadoActual; //puzzle actual
+//denota la posicion de un elemento en el puzzle
+struct Posicion{
+    int x;
+    int y;
+};
+
+//comparador
+struct myComp{
+    constexpr bool operator()(
+        pair<Puzzle,int> const& a,
+        pair<Puzzle,int> const& b)
+        const noexcept{
+            return a.second > b.second;
+        }
 };
 
 //funcion que imprime un tablero
-void imprimirTablero(vector<vector<int>>& matriz,int& size){
+void imprimirTablero(Puzzle& matriz,int& size){
     for(int i=0 ; i<size ; i++){
         for(int j=0 ; j<size ; j++){
             cout << matriz[i][j] << " ";
@@ -30,15 +41,8 @@ void imprimirTablero(vector<vector<int>>& matriz,int& size){
     puts("");
 }
 
-//asigna memoria a un nuevo nodo y retorna la referencia
-Tree* newNode(Tree* node , int size){
-    node = new Tree(); //creamos un nodo
-    node->estadoActual.resize(size,vector<int>(size)); //asignamos memoria para estado estadoActual
-    return node;
-}
-
 //retorna la posicion en la cual se halla en numero 0
-pair<int,int> findZero(vector<vector<int>>& puzzle,int size){
+pair<int,int> findZero(Puzzle& puzzle,int size){
     pair<int,int> posicion;
     for(int i=0 ; i<size ; i++){
         for(int j=0 ; j<size ; j++){
@@ -51,8 +55,8 @@ pair<int,int> findZero(vector<vector<int>>& puzzle,int size){
 }
 
 //crea un estado vecino en el cual mueve la celda vacia hacia la posicion superior
-vector<vector<int>> moveUp(vector<vector<int>>& estadoActual , int& size ,pair<int,int>& posCero){
-      vector<vector<int>> vecino = estadoActual; //vecino es el puzzle actual pero con un movimiento de casilla
+Puzzle moveUp(Puzzle& estadoActual , int& size ,pair<int,int>& posCero){
+      Puzzle vecino = estadoActual; //vecino es el puzzle actual pero con un movimiento de casilla
       int temp = estadoActual[posCero.first][posCero.second]; //guarda el valor cero
       vecino[posCero.first][posCero.second] = vecino[posCero.first - 1][posCero.second]; // el vecino guarda la posicion de arriba
       vecino[posCero.first-1][posCero.second] = temp;
@@ -60,8 +64,8 @@ vector<vector<int>> moveUp(vector<vector<int>>& estadoActual , int& size ,pair<i
 }
 
 //crea un estado vecino en el cual mueve la celda hacia la posicion inferior
-vector<vector<int>> moveDown(vector<vector<int>>& estadoActual , int& size ,pair<int,int>& posCero){
-    vector<vector<int>> vecino = estadoActual;
+Puzzle moveDown(Puzzle& estadoActual , int& size ,pair<int,int>& posCero){
+    Puzzle vecino = estadoActual;
     int temp = estadoActual[posCero.first][posCero.second]; //guarda el valor cero
     vecino[posCero.first][posCero.second] = vecino[posCero.first+1][posCero.second];
     vecino[posCero.first+1][posCero.second] = temp;
@@ -69,8 +73,8 @@ vector<vector<int>> moveDown(vector<vector<int>>& estadoActual , int& size ,pair
 }
 
 //crea un estado vecino en el cual mueve una casilla a la derecha
-vector<vector<int>> moveRight(vector<vector<int>>& estadoActual , int& size ,pair<int,int>& posCero){
-    vector<vector<int>> vecino = estadoActual;
+Puzzle moveRight(Puzzle& estadoActual , int& size ,pair<int,int>& posCero){
+    Puzzle vecino = estadoActual;
     int temp = estadoActual[posCero.first][posCero.second]; //guarda el valor cero
     vecino[posCero.first][posCero.second] = vecino[posCero.first][posCero.second+1];
     vecino[posCero.first][posCero.second+1] = temp;
@@ -78,8 +82,8 @@ vector<vector<int>> moveRight(vector<vector<int>>& estadoActual , int& size ,pai
 }
 
 //crea un estado vecino en el cual mueve una casilla a la izquierda
-vector<vector<int>> moveLeft(vector<vector<int>>& estadoActual , int& size ,pair<int,int>& posCero){
-    vector<vector<int>> vecino = estadoActual;
+Puzzle moveLeft(Puzzle& estadoActual , int& size ,pair<int,int>& posCero){
+    Puzzle vecino = estadoActual;
     int temp = estadoActual[posCero.first][posCero.second]; //guarda el valor cero
     vecino[posCero.first][posCero.second] = vecino[posCero.first][posCero.second-1];
     vecino[posCero.first][posCero.second-1] = temp;
@@ -87,7 +91,7 @@ vector<vector<int>> moveLeft(vector<vector<int>>& estadoActual , int& size ,pair
 }
 
 //esta funcion comprueba si el estado actual es igual al estado al cual queremos llegar
-bool testObjetivo(vector<vector<int>>& goal ,vector<vector<int>>& current , const int& size){
+bool testObjetivo(Puzzle& goal ,Puzzle& current , const int& size){
     for(int i=0 ; i<size ; i++){
         for(int j=0 ; j<size ; j++){
             if(goal[i][j] != current[i][j]){
@@ -99,8 +103,8 @@ bool testObjetivo(vector<vector<int>>& goal ,vector<vector<int>>& current , cons
 }
 
 //genera el puzzle resuelto , segun la dimension dada
-vector<vector<int>> getObjetivo(const int& size){
-    vector<vector<int>> goal;
+Puzzle getObjetivo(const int& size){
+    Puzzle goal;
     switch (size) {
       case 2:
         goal = {{1,2},{3,0}};
@@ -116,8 +120,8 @@ vector<vector<int>> getObjetivo(const int& size){
 }
 
 //este metodo retorna true si el top del stack es igual al nodo actual,en otro caso retorna false
-bool enFrontera(stack<vector<vector<int>>>& frontera,vector<vector<int>>& estadoActual){
-    vector<vector<int>> topFrontera;
+bool enFrontera(stack<Puzzle>& frontera,Puzzle& estadoActual){
+    Puzzle topFrontera;
     bool onTop = false;
     //si el stack no está vacio
     if(!frontera.empty()){
@@ -133,8 +137,25 @@ bool enFrontera(stack<vector<vector<int>>>& frontera,vector<vector<int>>& estado
     return false;
 }
 
+//este metodo retorna true si el front de la pq es igual al nodo actual , en otro caso retorna falso
+bool isFront(priority_queue<pair<Puzzle,int>,vector<pair<Puzzle,int>>,myComp > frontera,Puzzle& estadoActual){
+    Puzzle topFrontera;
+    bool onTop = false;
+
+    if(!frontera.empty()){
+        topFrontera = frontera.top().first;
+        onTop = true;
+    }
+    if(onTop){
+        if(testObjetivo(topFrontera,estadoActual,estadoActual.size())){
+            return true;
+        }
+    }
+    return false;
+}
+
 //este metodo retorna true si el estado esta en el conjunto de explorados , en otro caso retorna false
-bool fue_explorado(set<vector<vector<int>>>& nodosExplorados , vector<vector<int>>& estadoActual){
+bool fue_explorado(set<Puzzle>& nodosExplorados , Puzzle& estadoActual){
     if(nodosExplorados.find(estadoActual) != nodosExplorados.end()){
         return true; //elemento esta en el set
     }else{
@@ -143,8 +164,9 @@ bool fue_explorado(set<vector<vector<int>>>& nodosExplorados , vector<vector<int
 }
 
 //este metodo genera los vecinos del puzzle actual
-vector<vector<vector<int>>> generarVecinos(vector<vector<int>>& nodoActual,int size){
-    vector<vector<vector<int>>> vecinos;
+vector<Puzzle> generarVecinos(Puzzle& nodoActual){
+    vector<Puzzle> vecinos;
+    int size = nodoActual.size();
 
     /*existen 4 posibles movimientos para el puzzle actual*/
     pair<int,int> posVacia = findZero(nodoActual,size);
@@ -168,14 +190,14 @@ vector<vector<vector<int>>> generarVecinos(vector<vector<int>>& nodoActual,int s
 }
 
 
-bool dfs(vector<vector<int>>& estadoInicial , vector<vector<int>>& estadoFinal,int& size){
-    stack<vector<vector<int>>> frontera; //nodos en la frontera
-    set<vector<vector<int>>> explorado; //nodos que ya han sido explorados
+bool dfs(Puzzle& estadoInicial , Puzzle& estadoFinal,int& size){
+    stack<Puzzle> frontera; //nodos en la frontera
+    set<Puzzle> explorado; //nodos que ya han sido explorados
 
     frontera.push(estadoInicial); //agregar el estado inicial a la frontera
 
     while(!frontera.empty()){
-        vector<vector<int>> state = frontera.top(); //obtenemos el nodo actual
+        Puzzle state = frontera.top(); //obtenemos el nodo actual
         frontera.pop(); //lo sacamos del stack
         explorado.insert(state); //el estado actual ya ha sido expolorado
 
@@ -185,9 +207,9 @@ bool dfs(vector<vector<int>>& estadoInicial , vector<vector<int>>& estadoFinal,i
         }
 
         //insertar los vecinos del estado actual
-        vector<vector<vector<int>>> vecinos = generarVecinos(state,size);
+        vector<Puzzle> vecinos = generarVecinos(state);
 
-        vector<vector<vector<int>>>::iterator it;
+        vector<Puzzle>::iterator it;
         for(it = vecinos.begin() ; it != vecinos.end() ; it++){
             if(!enFrontera(frontera,*it) && !fue_explorado(explorado,*it)){
                 frontera.push(*it);
@@ -198,37 +220,121 @@ bool dfs(vector<vector<int>>& estadoInicial , vector<vector<int>>& estadoFinal,i
     return false;
 }
 
+/*calcula el la heuristica como la distancia manhattan entre una casilla a su posicion correcta
+recibe el estadoActual y un mapa que tiene como clave el elemento actual y su valor la posicion en su
+forma correcta
+*/
+int heuristic(Puzzle& estadoActual , map<int,Posicion>& goalPos, int size){
+    int h = 0;
+    map<int,Posicion>::iterator it;
+    for(int i=0 ; i<size ; i++){
+        for(int j=0 ; j<size ; j++){
+            it = goalPos.find(estadoActual[i][j]);
+            h += abs(i - it->second.x)  + abs(j - it->second.y);
+        }
+    }
+    return h;
+}
+
+Puzzle generateRandomPuzzle(const int& size){
+    vector<int> numeros(size*size);
+    Puzzle puzzle(size,vector<int>(size));
+    iota(numeros.begin(),numeros.end(),0); //genera vector de 0 a n-1
+    random_shuffle(numeros.begin(),numeros.end()); //randomiza los elementos del vector
+
+    //rellenar puzzle con los valores aleatorios
+    int contador = 0;
+    for(int i=0 ; i<size ; i++){
+        for(int j=0 ; j<size ; j++){
+            puzzle[i][j] = numeros[contador];
+            contador++;
+        }
+    }
+    return puzzle;
+}
+
+//generar un map con el valor y la posicion en el estadp final del puzzle
+void setPos_EstadoFinal(map<int,Posicion>& goalPos,const int& dimension){
+    //recorrer el goal
+    int contador = 1;
+    Posicion pos;
+    for(int i=0 ; i<dimension ; i++){
+        for(int j=0 ; j<dimension ; j++){
+            pos.x = i;
+            pos.y = j;
+
+            //agrega el 0 en la ultima casilla y no en la primera
+            if(i == dimension-1 && j == dimension-1){
+                goalPos[0] = pos;
+                break;
+            }
+            goalPos[contador] = pos;
+            contador++;
+        }
+    }
+}
+
+
+//gredy(inicio,fin,posicionesGoal,mapHeuristicas)
+bool greedy(Puzzle& estadoActual , Puzzle& estadoFinal , map<int,Posicion>& goalPos ,map<Puzzle,int>& tableroHeuristicas){
+    int size = estadoFinal.size();
+    priority_queue<pair<Puzzle,int>,vector<pair<Puzzle,int>>,myComp > frontera;
+    int h = heuristic(estadoActual,goalPos,size);
+    tableroHeuristicas[estadoActual] = h;
+    frontera.push(make_pair(estadoActual,h));
+    set<Puzzle> explorados;
+
+    while(!frontera.empty()){
+        Puzzle state = frontera.top().first; //tomamos el estado con la menor heuristica
+        frontera.pop(); //lo sacamos de la PQ
+        explorados.insert(state); //estado ya ha sido explorado
+
+        if(testObjetivo(state,estadoFinal,size)){
+            return true;
+        }
+
+        //insertar los vecinos del estado actual
+        vector<Puzzle> vecinos = generarVecinos(state);
+
+        vector<Puzzle>::iterator it;
+        for(it = vecinos.begin() ; it != vecinos.end() ; it++){
+            if(!isFront(frontera,*it) && !fue_explorado(explorados,*it)){
+                h = heuristic(*it,goalPos,size);
+                tableroHeuristicas[*it] = h;
+                frontera.push(make_pair(*it,h));
+                explorados.insert(*it);
+                imprimirTablero(*it,size);
+            }
+        }
+    }
+    return false;
+}
 
 
 int main(){
 
-    //dimension del tablero
+    //definir la dimension del tablero
     int dimension;
     puts("ingrese dimension");
     cin >> dimension;
 
-    //crear arbol de estados vacio
-    Tree* root = NULL;
+    //generar el estado objetivo
+    Puzzle goal = getObjetivo(dimension);
 
-    //crear un nodo raiz
-    root = newNode(root,dimension);
+    //generar un estado random desde el cual partir
+    Puzzle current = generateRandomPuzzle(dimension);
 
-    //creamos un estado inicial de prueba
-    int contador = (dimension*dimension)-1;
-    for(int i=0 ; i<dimension ; i++){
-        for(int j=0 ; j<dimension ; j++){
-            root->estadoActual[i][j] = contador;
-            contador--;
-        }
-    }
-    //imprimir
-    imprimirTablero(root->estadoActual,dimension);
+    //mapa que guarda elemento y su posicion en el puzzle objetivo
+    //sera usado para calcular la heuristica con respecto a las posiciones originales
+    map<int,Posicion> goalPos;
+    setPos_EstadoFinal(goalPos,dimension);
 
-    vector<vector<int>> goal = getObjetivo(dimension);
-    bool f = dfs(root->estadoActual,goal,dimension);
+    //mapa de un estado con su respectiva heuristica
+    //map <puzzle, heuristica>
+    map< Puzzle , int > heuristicasTablero;
+
+    bool f = greedy(current,goal,goalPos,heuristicasTablero);
     cout << f << endl;
-
-    delete root;
 
     return 0;
 }
