@@ -1,0 +1,15 @@
+1) Compilar codigo con  g++ tarea.cpp
+2) Ejecutar codigo con ./a.out
+
+3) El programa pedirá ingresar la dimension del puzzle , son tres opciones (2,3,4)
+    2 -> puzzle 3
+    3 -> puzzle 8
+    4 -> puzzle 15
+
+4) Luego pedira ingresar un string con el algoritmo a Ejecutar,Hay tres opciones:
+  bfs -> al ejecutarse imprime todos los nodos que va explorando el algoritmo , pero no el camino
+  dfs -> al ejecutarse imprime todos los nodos que va explorando en profundidad , pero no el camino
+  greedy -> al ejecutarse imprime el camino desde el nodo inicial al nodo final , ya que se basa en escoger
+            la menor heuristica y va agregando el estado al camino
+
+IMPORTANTE: A* no esta correctamente implementado por lo que no se agrego a las opciones
